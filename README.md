@@ -1,10 +1,12 @@
-# VoxelSpace API — Otimização Topológica de Estruturas Espaciais
+# Voxel API, Otimização Topológica de Estruturas Espaciais
 
 API REST em **.NET / ASP.NET Core** que modela, persiste (**Oracle** via EF Core) e
 expõe dados de **otimização topológica de componentes estruturais de satélites e
 espaçonaves**.
 
-> Entrega da disciplina de C# (tema **espacial**). Backend de domínio 100% C#.
+> Guilherme Oliveira Santana de Almeida - 555180
+
+> Vinicius Monteiro Araújo - 555088
 
 ---
 
@@ -12,8 +14,8 @@ espaçonaves**.
 
 Lançar massa ao espaço é caro: cada quilograma colocado em órbita baixa (LEO)
 custa **milhares de dólares**. Por isso a engenharia aeroespacial usa **otimização
-topológica** (método SIMP) para redesenhar peças estruturais — suportes, brackets,
-longarinas, estruturas de painel solar — removendo todo material que não contribui
+topológica** (método SIMP) para redesenhar peças estruturais, suportes, brackets,
+longarinas, estruturas de painel solar, removendo todo material que não contribui
 para a rigidez, mantendo a peça capaz de aguentar as cargas de lançamento e operação.
 
 Este projeto nasceu de um sistema real de otimização topológica 3D (engine em
@@ -21,11 +23,11 @@ Python que otimiza, inclusive, um `satellite_bracket.stl`). A **VoxelSpace API**
 camada de dados desse domínio, escrita em C#: ela registra os **componentes**, as
 **execuções de otimização** com seus parâmetros e resultados, a **telemetria de
 convergência** de cada iteração do solver, as **condições de contorno** (apoios,
-forças, regiões que não podem perder material) e calcula **métricas de missão** —
+forças, regiões que não podem perder material) e calcula **métricas de missão**,
 quanta massa foi economizada e **quanto isso representa em custo de lançamento**.
 
 O resultado de engenharia (volume removido) é traduzido em valor de missão
-(US$ economizados no lançamento) — que é exatamente a pergunta que decide se uma
+(US$ economizados no lançamento), que é exatamente a pergunta que decide se uma
 peça vai ou não para o espaço.
 
 ---
@@ -34,7 +36,7 @@ peça vai ou não para o espaço.
 
 | Recurso | Descrição |
 |---|---|
-| **Componentes espaciais** | Suportes estruturais, painéis solares, suportes de antena — com material, massa e índice de criticidade de missão (polimórfico). |
+| **Componentes espaciais** | Suportes estruturais, painéis solares, suportes de antena, com material, massa e índice de criticidade de missão (polimórfico). |
 | **Execuções de otimização** | Parâmetros do solver (volfrac, penal, rmin, grid), status, timestamps e métricas finais (volume antes/depois, **% de redução**, massa final, watertight). |
 | **Telemetria de iterações** | Série temporal da convergência: compliance, change e volume por iteração. |
 | **Condições de contorno** | Apoios / forças / keep-solid como geometrias esfera / caixa / face. |
@@ -46,7 +48,7 @@ peça vai ou não para o espaço.
 
 - **.NET 9** (LTS .NET 8 ou superior) · **ASP.NET Core Web API** (controllers)
 - **Entity Framework Core 9** + **Oracle.EntityFrameworkCore**
-- **Oracle XE 21c** (via Docker) — com **fallback SQLite** para desenvolvimento local
+- **Oracle XE 21c** (via Docker), com **fallback SQLite** para desenvolvimento local
 - **Swagger / OpenAPI** (Swashbuckle)
 
 ---
@@ -87,7 +89,7 @@ voxel_api_dash_C#/
 - [.NET SDK 9](https://dotnet.microsoft.com/download) (ou 8+)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (para o Oracle)
 
-### Opção A — Oracle XE em Docker (recomendado / produção)
+### Oracle XE em Docker
 
 ```bash
 # 1. sobe o Oracle XE e aguarda ficar "READY"
@@ -99,18 +101,6 @@ cd src/VoxelSpace.Api
 dotnet tool restore              # instala o dotnet-ef (manifest local)
 dotnet ef database update        # cria as tabelas no Oracle
 dotnet run
-```
-
-### Opção B — SQLite (fallback local, sem Docker)
-
-Para rodar sem instalar nada além do .NET (gera um arquivo `voxelspace.db`):
-
-```bash
-cd src/VoxelSpace.Api
-# Windows PowerShell:
-$env:DatabaseProvider="Sqlite"; dotnet run
-# bash:
-DatabaseProvider=Sqlite dotnet run
 ```
 
 > O provider é escolhido pela chave `DatabaseProvider` (`Oracle` | `Sqlite`) em
@@ -145,7 +135,7 @@ Exemplos de requisição/resposta reais estão em [`docs/evidencias/`](docs/evid
 
 ## 🗺️ Diagramas
 
-### Diagrama de classes — domínio
+### Diagrama de classes, domínio
 
 Duas hierarquias de herança (componentes e regiões), o agregado de execução com
 seu objeto de valor de parâmetros e a telemetria de iterações.
@@ -370,12 +360,3 @@ sequenceDiagram
 | **Organização** | estrutura por camadas (acima); este README; diagramas Mermaid; evidências em `docs/evidencias/` |
 
 ---
-
-## 📝 Notas
-
-- O `DataSeeder` popula 4 componentes e 4 execuções (concluídas, em andamento e com
-  erro) no primeiro start, garantindo dados em todos os endpoints.
-- Timestamps são gravados em **UTC** e expostos também convertidos para o horário
-  de Brasília (`*Local`).
-- Migrations versionadas são geradas para **Oracle**; no fallback SQLite o schema é
-  criado via `EnsureCreated()`.
