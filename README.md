@@ -5,6 +5,7 @@ expõe dados de **otimização topológica de componentes estruturais de satéli
 espaçonaves**.
 
 > Guilherme Oliveira Santana de Almeida - 555180
+
 > Vinicius Monteiro Araújo - 555088
 
 ---
