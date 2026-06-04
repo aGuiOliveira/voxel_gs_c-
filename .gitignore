@@ -10,6 +10,9 @@ obj/
 *.db-shm
 *.db-wal
 
+# Claude Code (configs/local da ferramenta)
+.claude/
+
 # Rider / VS / VS Code
 .idea/
 .vs/
