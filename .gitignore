@@ -1,0 +1,25 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+
+# SQLite local (fallback de desenvolvimento)
+*.db
+*.db-shm
+*.db-wal
+
+# Rider / VS / VS Code
+.idea/
+.vs/
+*.suo
+
+# Logs
+*.log
+# ...exceto as evidências de execução, que fazem parte da entrega
+!docs/evidencias/*.log
+
+# OS
+.DS_Store
+Thumbs.db
