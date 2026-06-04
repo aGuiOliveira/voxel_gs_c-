@@ -145,8 +145,217 @@ Exemplos de requisição/resposta reais estão em [`docs/evidencias/`](docs/evid
 
 ## 🗺️ Diagramas
 
-- [Diagrama de classes](docs/diagrama-classes.md) — hierarquias e relacionamentos
-- [Arquitetura, máquina de estados e sequência](docs/arquitetura.md)
+### Diagrama de classes — domínio
+
+Duas hierarquias de herança (componentes e regiões), o agregado de execução com
+seu objeto de valor de parâmetros e a telemetria de iterações.
+
+```mermaid
+classDiagram
+    class ComponenteEspacial {
+        <<abstract>>
+        +int Id
+        +string Nome
+        +MaterialAeroespacial Material
+        +decimal MassaInicialKg
+        +DateTime DataCadastro
+        +CalcularIndiceCriticidade()* decimal
+        +ClassificacaoMissao()* string
+        +ResumoTecnico() string
+    }
+    class SuporteEstrutural {
+        +double CargaSuportadaKn
+    }
+    class PainelSolar {
+        +double AreaM2
+        +double PotenciaW
+    }
+    class SuporteAntena {
+        +double FrequenciaGhz
+    }
+    ComponenteEspacial <|-- SuporteEstrutural
+    ComponenteEspacial <|-- PainelSolar
+    ComponenteEspacial <|-- SuporteAntena
+
+    class ExecucaoOtimizacao {
+        +int Id
+        +StatusExecucao Status
+        +DateTime DataCriacao
+        +DateTime? DataInicio
+        +DateTime? DataFim
+        +double? DuracaoSegundos
+        +double? ReducaoPct
+        +decimal? MassaFinalKg
+        +Iniciar()
+        +Concluir(ResultadoOtimizacao, MaterialAeroespacial)
+        +RegistrarFalha(string)
+        +Cancelar()
+        +RegistrarIteracao(IteracaoOtimizacao)
+        +MassaEconomizadaKg() decimal?
+    }
+    class ParametrosOtimizacao {
+        <<owned>>
+        +double Volfrac
+        +double Penal
+        +int Nelx
+        +Validar()
+    }
+    class IteracaoOtimizacao {
+        +int NumeroIteracao
+        +double Compliance
+        +double Change
+        +DateTime RegistradoEm
+    }
+
+    class RegiaoFronteira {
+        <<abstract>>
+        +int Id
+        +TipoCondicao TipoCondicao
+        +double? Fx
+        +CalcularVolumeMm3()* double
+        +DescreverGeometria()* string
+        +MagnitudeForca() double
+    }
+    class RegiaoEsferica {
+        +double CentroX
+        +double Raio
+    }
+    class RegiaoCaixa {
+        +double MinX
+        +double MaxX
+    }
+    class RegiaoFace {
+        +FaceGrid Face
+        +double EspessuraMm
+    }
+    RegiaoFronteira <|-- RegiaoEsferica
+    RegiaoFronteira <|-- RegiaoCaixa
+    RegiaoFronteira <|-- RegiaoFace
+
+    ComponenteEspacial "1" --> "*" ExecucaoOtimizacao : Execucoes
+    ExecucaoOtimizacao "1" *-- "1" ParametrosOtimizacao : Parametros
+    ExecucaoOtimizacao "1" --> "*" IteracaoOtimizacao : Iteracoes
+    ExecucaoOtimizacao "1" --> "*" RegiaoFronteira : Regioes
+```
+
+### Interfaces e injeção de dependência
+
+```mermaid
+classDiagram
+    class IRepositorio~T~ {
+        <<interface>>
+        +ObterPorIdAsync(int) T
+        +ListarAsync() IReadOnlyList~T~
+        +AdicionarAsync(T)
+        +SalvarAsync() int
+    }
+    class IComponenteRepository {
+        <<interface>>
+        +ObterComExecucoesAsync(int)
+    }
+    class IExecucaoRepository {
+        <<interface>>
+        +ListarFiltradoAsync(status, de, ate)
+        +ListarConcluidasAsync()
+    }
+    class IExecucaoService {
+        <<interface>>
+        +CriarAsync() ExecucaoOtimizacao
+        +IniciarAsync() ExecucaoOtimizacao
+        +ConcluirAsync() ExecucaoOtimizacao
+    }
+    class IEstatisticaService {
+        <<interface>>
+        +ObterResumoAsync()
+        +ObterRankingAsync(top)
+    }
+
+    IRepositorio <|-- IComponenteRepository
+    IRepositorio <|-- IExecucaoRepository
+    IComponenteRepository <|.. ComponenteRepository
+    IExecucaoRepository <|.. ExecucaoRepository
+    IExecucaoService <|.. ExecucaoService
+    IEstatisticaService <|.. EstatisticaService
+    ExecucaoService --> IExecucaoRepository
+    ExecucaoService --> IComponenteRepository
+    EstatisticaService --> IExecucaoRepository
+```
+
+### Arquitetura em camadas
+
+```mermaid
+flowchart TB
+    Cliente["Cliente HTTP / Swagger UI"]
+    subgraph API["VoxelSpace.Api (ASP.NET Core)"]
+        MW["ExceptionHandlingMiddleware<br/>(ProblemDetails 400/404/409/500)"]
+        Ctrl["Controllers<br/>Componentes · Execucoes · Estatisticas"]
+        Svc["Services<br/>ExecucaoService · EstatisticaService"]
+        Repo["Repositories (EF Core)<br/>Componente · Execucao"]
+        Dom["Domain<br/>entidades + regras + POO"]
+    end
+    DB[("Banco<br/>Oracle XE | SQLite")]
+
+    Cliente --> MW --> Ctrl
+    Ctrl -->|DTOs| Svc
+    Ctrl -->|leituras| Repo
+    Svc --> Repo
+    Svc --> Dom
+    Repo --> Dom
+    Repo --> DB
+```
+
+A camada de domínio não depende de nada acima dela. Controllers e serviços
+dependem de **interfaces** (`IRepositorio<T>`, `IExecucaoService`,
+`IEstatisticaService`), resolvidas por injeção de dependência no `Program.cs`.
+
+### Ciclo de vida de uma execução (máquina de estados)
+
+```mermaid
+stateDiagram-v2
+    [*] --> Enfileirada : POST /api/execucoes
+    Enfileirada --> Executando : iniciar()
+    Enfileirada --> Cancelada : cancelar()
+    Executando --> Concluida : concluir(resultado)
+    Executando --> Erro : registrarFalha(msg)
+    Executando --> Cancelada : cancelar()
+    Concluida --> [*]
+    Erro --> [*]
+    Cancelada --> [*]
+```
+
+Transições inválidas (ex.: concluir algo já concluído) lançam
+`RegraNegocioException` → HTTP 409. A telemetria de iterações só é aceita no
+estado `Executando`.
+
+### Fluxo "criar e concluir uma execução" (sequência)
+
+```mermaid
+sequenceDiagram
+    participant C as Cliente
+    participant E as ExecucoesController
+    participant S as ExecucaoService
+    participant R as IExecucaoRepository
+    participant DB as Banco
+
+    C->>E: POST /api/execucoes {componenteId, parametros}
+    E->>S: CriarAsync(...)
+    S->>S: parametros.Validar()
+    S->>R: ObterPorIdAsync(componenteId)
+    R-->>S: ComponenteEspacial (ou 404)
+    S->>R: AdicionarAsync(execucao) + SalvarAsync()
+    R->>DB: INSERT
+    E-->>C: 201 Created (Enfileirada)
+
+    C->>E: POST /api/execucoes/{id}/concluir {resultado}
+    E->>S: ConcluirAsync(id, resultado)
+    S->>S: execucao.Concluir() -> calcula reducaoPct + massaFinalKg
+    S->>R: SalvarAsync()
+    E-->>C: 200 OK (Concluida + métricas)
+```
+
+> Os mesmos diagramas, em arquivos separados, também estão em
+> [`docs/diagrama-classes.md`](docs/diagrama-classes.md) e
+> [`docs/arquitetura.md`](docs/arquitetura.md).
 
 ---
 
