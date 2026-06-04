@@ -136,7 +136,6 @@ Exemplos de requisição/resposta reais estão em [`docs/evidencias/`](docs/evid
 ## 🗺️ Diagramas
 
 ### Diagrama de classes, domínio
-
 Duas hierarquias de herança (componentes e regiões), o agregado de execução com
 seu objeto de valor de parâmetros e a telemetria de iterações.
 
